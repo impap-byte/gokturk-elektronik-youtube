@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -11,37 +10,37 @@
 #define SS_PIN 5
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 RTC_DATA_ATTR bool first_run = true;
-int kagit = 0;
+int stocks = 0;
 const char* ssid = "ssid";
 const char* password = "password";
-const char* apiURLdrd = "";
-const char* apiURLdn_isi = "";
+const char* apiURLdardanel = "";
+const char* apiURLdnisi = "";
 const char* apiURLeczaci = "";
 const char* apiURLsoke = "";
-const char* apiURLdrd_yuzde = "";
-const char* apiURLdn_isi_yuzde = "";
-const char* apiURLeczaci_yuzde = "";
-const char* apiURLsoke_yuzde = "";
+const char* apiURLdardanel_percentage = "";
+const char* apiURLdnisi_percentage = "";
+const char* apiURLeczaci_percentage = "";
+const char* apiURLsoke_percentage = "";
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-const char* kagitlarim[4];
-const char* yuzdeler[4];
-unsigned long oncekizaman = 0;
-const long beklemesuresi = 30000;
+const char* stockURLs[4];
+const char* percentages[4];
+unsigned long previousTime = 0;
+const long waitTime = 30000;
 
-const int buton_ileri = 13;
-const int buton_geri = 4;
+const int buttonForward = 13;
+const int buttonBack = 4;
 const int sleepSwitch = 16;
 
 int counter = 0;
-unsigned long buton_zamani = 0;
-volatile bool ileriPressed = false;
-volatile bool geriPressed = false;
-unsigned long buton_beklemesuresi = 60000;
+unsigned long buttonTime = 0;
+volatile bool forwardPressed = false;
+volatile bool backPressed = false;
+unsigned long buttonWaitTime = 60000;
 // Function prototypes
-void kagitGoruntule(int kagit);
-void geriInterrupt();
-void ileriInterrupt();
+void showStock(int stock);
+void backInterrupt();
+void forwardInterrupt();
 
 void setup() {
   lcd.init();
@@ -49,9 +48,9 @@ void setup() {
   if (first_run) {
     SPI.begin();
     mfrc522.PCD_Init();
-    lcd.print("   BORSAMATIK");
+    lcd.print("   STOCKMATIC");
     lcd.setCursor(0, 1);
-    lcd.print("KART BEKLENIYOR");
+    lcd.print("WAITING FOR CARD");
     while (first_run) {
       if (!mfrc522.PICC_IsNewCardPresent()) {
         continue;
@@ -67,7 +66,7 @@ void setup() {
       content.toUpperCase();
       lcd.clear();
       if (content.substring(1) == "82 B5 5D 51") {
-        lcd.print("    MERHABA");
+        lcd.print("    HELLO");
         lcd.setCursor(0, 1);
         lcd.print("     ERTAN");
         first_run = false;
@@ -75,9 +74,9 @@ void setup() {
         lcd.clear();
         break;
       } else {
-        lcd.print(" TANIMLANMAMIS");
+        lcd.print(" UNREGISTERED");
         lcd.setCursor(0, 1);
-        lcd.print("      KART");
+        lcd.print("      CARD");
         delay(500);
         continue;
       }
@@ -90,20 +89,20 @@ void setup() {
   esp_sleep_enable_ext1_wakeup(BUTTON_BITMASK, ESP_EXT1_WAKEUP_ANY_HIGH);
   delay(1000);
 
-  kagitlarim[0] = apiURLdrd;
-  kagitlarim[1] = apiURLdn_isi;
-  kagitlarim[2] = apiURLeczaci;
-  kagitlarim[3] = apiURLsoke;
+  stockURLs[0] = apiURLdardanel;
+  stockURLs[1] = apiURLdnisi;
+  stockURLs[2] = apiURLeczaci;
+  stockURLs[3] = apiURLsoke;
 
-  yuzdeler[0] = apiURLdrd_yuzde;
-  yuzdeler[1] = apiURLdn_isi_yuzde;
-  yuzdeler[2] = apiURLeczaci_yuzde;
-  yuzdeler[3] = apiURLsoke_yuzde;
-  pinMode(buton_geri, INPUT);
-  pinMode(buton_ileri, INPUT);
+  percentages[0] = apiURLdardanel_percentage;
+  percentages[1] = apiURLdnisi_percentage;
+  percentages[2] = apiURLeczaci_percentage;
+  percentages[3] = apiURLsoke_percentage;
+  pinMode(buttonBack, INPUT);
+  pinMode(buttonForward, INPUT);
   pinMode(sleepSwitch, INPUT_PULLUP);
-  attachInterrupt(buton_geri, geriInterrupt, RISING);
-  attachInterrupt(buton_ileri, ileriInterrupt, RISING);
+  attachInterrupt(buttonBack, backInterrupt, RISING);
+  attachInterrupt(buttonForward, forwardInterrupt, RISING);
 
   WiFi.begin(ssid, password);
 
@@ -115,45 +114,45 @@ void setup() {
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("WiFiYA BAGLANDI!");
+  lcd.print("WiFi CONNECTED!");
   lcd.setCursor(0, 1);
-  lcd.print("BIR BUTONA BASIN");
+  lcd.print("PRESS A BUTTON");
   delay(2000);
   lcd.clear();
 }
 
 void loop() {
-  if (ileriPressed) {
-    buton_zamani = millis();
-    ileriPressed = false;
+  if (forwardPressed) {
+    buttonTime = millis();
+    forwardPressed = false;
     lcd.backlight();
-    if (kagit < 3) {
-      kagit += 1;
-      kagitGoruntule(kagit);
+    if (stocks < 3) {
+      stocks += 1;
+      showStock(stocks);
     } else {
-      kagit = 0;
-      kagitGoruntule(kagit);
+      stocks = 0;
+      showStock(stocks);
     }
   }
 
-  if (geriPressed) {
-    buton_zamani = millis();
+  if (backPressed) {
+    buttonTime = millis();
     lcd.backlight();
-    geriPressed = false;
-    if (kagit > 0) {
-      kagit -= 1;
-      kagitGoruntule(kagit);
+    backPressed = false;
+    if (stocks > 0) {
+      stocks -= 1;
+      showStock(stocks);
     } else {
-      kagit = 3;
-      kagitGoruntule(kagit);
+      stocks = 3;
+      showStock(stocks);
     }
   }
-  unsigned long suankiZaman = millis();
-  if (suankiZaman - oncekizaman >= beklemesuresi) {
+  unsigned long currentTime = millis();
+  if (currentTime - previousTime >= waitTime) {
     counter++;
-    oncekizaman = suankiZaman;
+    previousTime = currentTime;
     HTTPClient http;
-    http.begin(kagitlarim[kagit]);
+    http.begin(stockURLs[stocks]);
     int httpResponseCode = http.GET();
     if (httpResponseCode > 0) {
       String response = http.getString();
@@ -164,7 +163,7 @@ void loop() {
       lcd.print(response);
       http.end();
       HTTPClient http2;
-      http2.begin(yuzdeler[kagit]);
+      http2.begin(percentages[stocks]);
       httpResponseCode = http2.GET();
       if (httpResponseCode > 0) {
         String response2 = http2.getString();
@@ -186,7 +185,7 @@ void loop() {
         lcd.print("  NO CONNECTION");
       }
     }
-  } else if (suankiZaman - buton_zamani >= buton_beklemesuresi && digitalRead(sleepSwitch)) {
+  } else if (currentTime - buttonTime >= buttonWaitTime && digitalRead(sleepSwitch)) {
     WiFi.disconnect();
     WiFi.mode(WIFI_OFF);
     lcd.noDisplay();
@@ -195,29 +194,29 @@ void loop() {
   }
 }
 
-void kagitGoruntule(int kagit) {
+void showStock(int stock) {
   HTTPClient http;
-  http.begin(kagitlarim[kagit]);
+  http.begin(stockURLs[stock]);
   int httpResponseCode = http.GET();
   if (httpResponseCode > 0) {
     String response = http.getString();
     lcd.clear();
     lcd.setCursor(0, 0);
-    if (kagit == 0) {
-      lcd.print("1-DARDANEL CANLI");
-    } else if (kagit == 1) {
-      lcd.print("2-DNISI CANLI");
-    } else if (kagit == 2) {
-      lcd.print("3-ECZACI CANLI");
-    } else if (kagit == 3) {
-      lcd.print("4-SOKE UN CANLI");
+    if (stock == 0) {
+      lcd.print("1-DARDANEL LIVE");
+    } else if (stock == 1) {
+      lcd.print("2-DNISI LIVE");
+    } else if (stock == 2) {
+      lcd.print("3-ECZACI LIVE");
+    } else if (stock == 3) {
+      lcd.print("4-SOKE UN LIVE");
     }
     lcd.setCursor(0, 1);
     lcd.print(response);
     http.end();
   }
   HTTPClient http2;
-  http2.begin(yuzdeler[kagit]);
+  http2.begin(percentages[stock]);
   httpResponseCode = http2.GET();
   if (httpResponseCode > 0) {
     String response2 = http2.getString();
@@ -228,10 +227,10 @@ void kagitGoruntule(int kagit) {
   }
 }
 
-void IRAM_ATTR geriInterrupt() {
-  geriPressed = true;
+void IRAM_ATTR backInterrupt() {
+  backPressed = true;
 }
 
-void IRAM_ATTR ileriInterrupt() {
-  ileriPressed = true;
+void IRAM_ATTR forwardInterrupt() {
+  forwardPressed = true;
 }
