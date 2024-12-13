@@ -45,7 +45,7 @@ void loop() {
         ac.off();             // Turn the AC off
         ac.send();            // Send the IR signal
       } 
-      // If the temperature is close to the thresholds, enter deep sleep mode
+      // If the temperature is close to the thresholds, deep sleep mode will be shorter. 
       else if (0 < 31.45 - T < 0.3 || 0 < T - 29.2 < 0.3) {
         esp_sleep_enable_timer_wakeup(15000000 / 4); // Set timer for deep sleep
         esp_deep_sleep_start();                     // Enter deep sleep
@@ -53,7 +53,7 @@ void loop() {
     }
   }
 
-  // Default behavior: Enter deep sleep for 15 seconds
+  // Default behavior: Enter deep sleep for 2.5 minutes
   esp_sleep_enable_timer_wakeup(15000000);
   esp_deep_sleep_start();
 }
