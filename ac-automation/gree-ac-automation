@@ -1,0 +1,59 @@
+#include <Arduino.h>
+#include <IRremoteESP8266.h>  // Library for IR remote functionality
+#include <IRsend.h>           // Library for sending IR signals
+#include <ir_Gree.h>          // Library for controlling Gree ACs
+#include <Wire.h>             // Library for I2C communication
+#include <SFE_BMP180.h>       // Library for BMP180 temperature sensor
+
+const uint16_t kIrLed = 4;    // Define the GPIO pin for the IR LED
+IRGreeAC ac(kIrLed);          // Initialize the Gree AC controller
+SFE_BMP180 bmp180;            // Initialize the BMP180 temperature sensor
+
+void setup() {
+  ac.begin();                 // Initialize the IR remote for Gree AC
+  delay(200);                 // Small delay for initialization
+
+  // Configure the AC settings
+  ac.setXFan(3) = 4;          
+  ac.setMode(kGreeCool);   
+  ac.setTemp(22);          
+  ac.setFan(false);         
+  ac.setLight(false);        
+  ac.setSleep(false);         
+  ac.setTurbo(false);        
+}
+
+void loop() {
+  double T;                   // Variable to store temperature reading
+  char status;                // Variable to store BMP180 operation status
+
+  // Start temperature measurement
+  status = bmp180.startTemperature();
+  if (status != 0) {          // Check if measurement started successfully
+    delay(status);            // Wait for the measurement to complete
+
+    status = bmp180.getTemperature(T);  // Retrieve the temperature value
+    if (status != 0) {        // Check if the temperature was successfully retrieved
+
+      // If temperature is greater than 31.45°C, turn the AC on
+      if (T > 31.45) {
+        ac.on();              // Turn the AC on
+        ac.send();            // Send the IR signal
+      } 
+      // If temperature is less than 29.2°C, turn the AC off
+      else if (T < 29.2) {
+        ac.off();             // Turn the AC off
+        ac.send();            // Send the IR signal
+      } 
+      // If the temperature is close to the thresholds, enter deep sleep mode
+      else if (0 < 31.45 - T < 0.3 || 0 < T - 29.2 < 0.3) {
+        esp_sleep_enable_timer_wakeup(15000000 / 4); // Set timer for deep sleep
+        esp_deep_sleep_start();                     // Enter deep sleep
+      }
+    }
+  }
+
+  // Default behavior: Enter deep sleep for 15 seconds
+  esp_sleep_enable_timer_wakeup(15000000);
+  esp_deep_sleep_start();
+}
