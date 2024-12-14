@@ -1,5 +1,5 @@
-Gree Air Conditioner Control with BMP180 Barometric Pressure/Temperature/Altitude Sensor
-Overview
+##Gree Air Conditioner Control with BMP180 Barometric Pressure/Temperature/Altitude Sensor##
+##Overview##
 This project uses an ESP8266 microcontroller to control a Gree air conditioner (AC) based on temperature readings from a BMP180 sensor. 
 The system automatically manages the AC's power state (on/off) depending on the ambient temperature. 
 It features:
