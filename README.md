@@ -13,7 +13,7 @@ advanced projects, all explained in a clear and engaging manner.
 - Practical applications of sensors and modules
 - Embedded programming tips and tricks
 
-Subscribe to the channel to stay updated:[Göktürk Elektronik](https://www.youtube.com/@gokturkelektronik)
+Subscribe to the channel to stay updated: [Göktürk Elektronik](https://www.youtube.com/@gokturkelektronik)
 
 ---
 
